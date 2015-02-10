@@ -15,16 +15,18 @@
 
 
 #define kBufferLength 4096
-#define kframesPerSecond 30;
-#define knumDataArraysToGraph 2;
+#define kEquilizerBufferLength 20
+#define kframesPerSecond 30
+#define knumDataArraysToGraph 3
 
 @interface ViewController ()
 
 @property (strong, nonatomic) Novocaine *audioManager;
-@property (nonatomic) AudioFileReader *fileReader;
 @property (nonatomic)RingBuffer *ringBuffer;
 @property (nonatomic)GraphHelper *graphHelper;
 @property (nonatomic)float *audioData;
+
+@property (nonatomic)float *equilizerData;
 
 @property (nonatomic)SMUFFTHelper *fftHelper;
 @property (nonatomic)float *fftMagnitudeBuffer;
@@ -50,11 +52,6 @@ float *fftPhaseBuffer;
         _audioManager = [Novocaine audioManager];
     return _audioManager;
 }
--(AudioFileReader*) fileReader {
-    if(!_fileReader)
-        _fileReader = (float*)calloc(kBufferLength,sizeof(float));
-    return _fileReader;
-}
 -(RingBuffer*) ringBuffer {
     if(!_ringBuffer)
         _ringBuffer = new RingBuffer(kBufferLength,2);
@@ -64,13 +61,21 @@ float *fftPhaseBuffer;
     if(!_graphHelper) {
         _graphHelper = new GraphHelper(self,
                                        kframesPerSecond,
-                                       numDataArraysToGraph,
+                                       knumDataArraysToGraph,
                                        PlotStyleSeparated);
     }
     return _graphHelper;
 }
 -(float*) audioData {
-    
+    if(!_audioData)
+        _audioData = (float*)calloc(kBufferLength,sizeof(float));
+    return _audioData;
+}
+
+-(float*) equilizerData {
+    if(!_equilizerData)
+        _equilizerData = (float*)calloc(kBufferLength,sizeof(float));
+    return _equilizerData;
 }
 -(SMUFFTHelper*) fftHelper {
     if(!_fftHelper)
@@ -122,7 +127,9 @@ float *fftPhaseBuffer;
                                   PlotStyleSeparated);//drawing starts immediately after call
      */
     
-    graphHelper->SetBounds(-0.9,0.9,-0.9,0.9); // bottom, top, left, right, full screen==(-1,1,-1,1)
+    self.graphHelper->SetBounds(-0.9,0.9,-0.9,0.9); // bottom, top, left, right, full screen==(-1,1,-1,1)
+    
+    [self.audioManager play];
     
 
 }
@@ -131,10 +138,10 @@ float *fftPhaseBuffer;
     [super viewWillAppear:animated];
     
 
-    [audioManager setInputBlock:^(float *data, UInt32 numFrames, UInt32 numChannels)
+    [self.audioManager setInputBlock:^(float *data, UInt32 numFrames, UInt32 numChannels)
      {
-         if(ringBuffer!=nil)
-             ringBuffer->AddNewFloatData(data, numFrames);
+         if(self.ringBuffer!=nil)
+             self.ringBuffer->AddNewFloatData(data, numFrames);
      }];
     
 //    __block float frequency = 261.0; //starting frequency
@@ -166,26 +173,27 @@ float *fftPhaseBuffer;
 #pragma mark - unloading and dealloc
 -(void) viewDidDisappear:(BOOL)animated{
     // stop opengl from running
-    graphHelper->tearDownGL();
-    audioManager.pause;
+    self.graphHelper->tearDownGL();
+    [self.audioManager pause];
 }
 
 -(void)dealloc{
-    graphHelper->tearDownGL();
+    self.graphHelper->tearDownGL();
     
-    free(audioData);
+    free(self.audioData);
+    free(self.equilizerData);
     
-    free(fftMagnitudeBuffer);
-    free(fftPhaseBuffer);
+    free(self.fftMagnitudeBuffer);
+    free(self.fftPhaseBuffer);
     
-    delete fftHelper;
-    delete ringBuffer;
-    delete graphHelper;
+    delete self.fftHelper;
+    delete self.ringBuffer;
+    delete self.graphHelper;
     
-    ringBuffer = nil;
-    fftHelper  = nil;
-    audioManager = nil;
-    graphHelper = nil;
+    self.ringBuffer = nil;
+    self.fftHelper  = nil;
+    self.audioManager = nil;
+    self.graphHelper = nil;
     
     
     // ARC handles everything else, just clean up what we used c++ for (calloc, malloc, new)
@@ -196,7 +204,7 @@ float *fftPhaseBuffer;
 #pragma mark - OpenGL and Update functions
 //  override the GLKView draw function, from OpenGLES
 - (void)glkView:(GLKView *)view drawInRect:(CGRect)rect {
-    graphHelper->draw(); // draw the graph
+    self.graphHelper->draw(); // draw the graph
 }
 
 
@@ -204,16 +212,16 @@ float *fftPhaseBuffer;
 - (void)update{
     
     // plot the audio
-    ringBuffer->FetchFreshData2(audioData, kBufferLength, 0, 1);
-    graphHelper->setGraphData(0,audioData,kBufferLength); // set graph channel
+    self.ringBuffer->FetchFreshData2(self.audioData, kBufferLength, 0, 1);
+    self.graphHelper->setGraphData(0,self.audioData,kBufferLength); // set graph channel
     
     //take the FFT
-    fftHelper->forward(0,audioData, fftMagnitudeBuffer, fftPhaseBuffer);
+    self.fftHelper->forward(0,self.audioData, self.fftMagnitudeBuffer, self.fftPhaseBuffer);
     
     // plot the FFT
-    graphHelper->setGraphData(1,fftMagnitudeBuffer,kBufferLength/8,sqrt(kBufferLength)); // set graph channel
+    self.graphHelper->setGraphData(1,self.fftMagnitudeBuffer,kBufferLength/8,sqrt(kBufferLength)); // set graph channel
     
-    graphHelper->update(); // update the graph
+    self.graphHelper->update(); // update the graph
 }
 
 #pragma mark - status bar

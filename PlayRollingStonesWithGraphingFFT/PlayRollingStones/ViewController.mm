@@ -15,48 +15,112 @@
 
 
 #define kBufferLength 4096
+#define kframesPerSecond 30;
+#define knumDataArraysToGraph 2;
 
 @interface ViewController ()
+
+@property (strong, nonatomic) Novocaine *audioManager;
+@property (nonatomic) AudioFileReader *fileReader;
+@property (nonatomic)RingBuffer *ringBuffer;
+@property (nonatomic)GraphHelper *graphHelper;
+@property (nonatomic)float *audioData;
+
+@property (nonatomic)SMUFFTHelper *fftHelper;
+@property (nonatomic)float *fftMagnitudeBuffer;
+@property (nonatomic)float *fftPhaseBuffer;
 
 @end
 
 @implementation ViewController
 
+/*
 Novocaine *audioManager;
 AudioFileReader *fileReader;
 RingBuffer *ringBuffer;
 GraphHelper *graphHelper;
 float *audioData;
-
 SMUFFTHelper *fftHelper;
 float *fftMagnitudeBuffer;
 float *fftPhaseBuffer;
+ */
+
+-(Novocaine*) audioManager {
+    if(!_audioManager)
+        _audioManager = [Novocaine audioManager];
+    return _audioManager;
+}
+-(AudioFileReader*) fileReader {
+    if(!_fileReader)
+        _fileReader = (float*)calloc(kBufferLength,sizeof(float));
+    return _fileReader;
+}
+-(RingBuffer*) ringBuffer {
+    if(!_ringBuffer)
+        _ringBuffer = new RingBuffer(kBufferLength,2);
+    return _ringBuffer;
+}
+-(GraphHelper*) graphHelper {
+    if(!_graphHelper) {
+        _graphHelper = new GraphHelper(self,
+                                       kframesPerSecond,
+                                       numDataArraysToGraph,
+                                       PlotStyleSeparated);
+    }
+    return _graphHelper;
+}
+-(float*) audioData {
+    
+}
+-(SMUFFTHelper*) fftHelper {
+    if(!_fftHelper)
+        _fftHelper = new SMUFFTHelper(kBufferLength,kBufferLength,WindowTypeRect);
+    return _fftHelper;
+}
+-(float*) fftMagnitudeBuffer {
+    if(!_fftMagnitudeBuffer)
+        _fftMagnitudeBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
+    return _fftMagnitudeBuffer;
+}
+-(float*) fftPhaseBuffer {
+    if(!_fftPhaseBuffer)
+        _fftPhaseBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
+    return _fftPhaseBuffer;
+}
 
 
+
+
+/*
+-(SMUFFTHelper*) fftHelper {
+ 
+}
+*/
 #pragma mark - loading and appear
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 	// Do any additional setup after loading the view, typically from a nib.
     
-    audioManager = [Novocaine audioManager];
-    ringBuffer = new RingBuffer(kBufferLength,2);
+    //audioManager = [Novocaine audioManager];
+    //ringBuffer = new RingBuffer(kBufferLength,2);
     
-    audioData = (float*)calloc(kBufferLength,sizeof(float));
+    //audioData = (float*)calloc(kBufferLength,sizeof(float));
     
     //setup the fft
-    fftHelper = new SMUFFTHelper(kBufferLength,kBufferLength,WindowTypeRect);
-    fftMagnitudeBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
-    fftPhaseBuffer     = (float *)calloc(kBufferLength/2,sizeof(float));
+    //fftHelper = new SMUFFTHelper(kBufferLength,kBufferLength,WindowTypeRect);
+    //fftMagnitudeBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
+    //fftPhaseBuffer     = (float *)calloc(kBufferLength/2,sizeof(float));
     
     
     // start animating the graph
-    int framesPerSecond = 30;
-    int numDataArraysToGraph = 2;
-    graphHelper = new GraphHelper(self,
+    //int framesPerSecond = 30;
+    //int numDataArraysToGraph = 2;
+    /*graphHelper = new GraphHelper(self,
                                   framesPerSecond,
                                   numDataArraysToGraph,
                                   PlotStyleSeparated);//drawing starts immediately after call
+     */
     
     graphHelper->SetBounds(-0.9,0.9,-0.9,0.9); // bottom, top, left, right, full screen==(-1,1,-1,1)
     
@@ -103,6 +167,7 @@ float *fftPhaseBuffer;
 -(void) viewDidDisappear:(BOOL)animated{
     // stop opengl from running
     graphHelper->tearDownGL();
+    audioManager.pause;
 }
 
 -(void)dealloc{
@@ -122,9 +187,11 @@ float *fftPhaseBuffer;
     audioManager = nil;
     graphHelper = nil;
     
+    
     // ARC handles everything else, just clean up what we used c++ for (calloc, malloc, new)
     
 }
+
 
 #pragma mark - OpenGL and Update functions
 //  override the GLKView draw function, from OpenGLES

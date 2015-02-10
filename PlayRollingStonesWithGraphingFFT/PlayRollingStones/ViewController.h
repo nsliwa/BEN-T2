@@ -11,4 +11,6 @@
 
 @interface ViewController : GLKViewController
 
+-(Novocaine*) audioManager
+
 @end

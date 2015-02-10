@@ -12,12 +12,14 @@
 #import "RingBuffer.h"
 #import "SMUGraphHelper.h"
 #import "SMUFFTHelper.h"
+#import <Math.h>
 
 
 #define kBufferLength 4096
 #define kEquilizerBufferLength 20
 #define kframesPerSecond 30
 #define knumDataArraysToGraph 3
+#define kChunkSize 102
 
 @interface ViewController ()
 
@@ -27,6 +29,7 @@
 @property (nonatomic)float *audioData;
 
 @property (nonatomic)float *equilizerData;
+@property (nonatomic)float *equilizerHelper;
 
 @property (nonatomic)SMUFFTHelper *fftHelper;
 @property (nonatomic)float *fftMagnitudeBuffer;
@@ -77,16 +80,25 @@ float *fftPhaseBuffer;
         _equilizerData = (float*)calloc(kBufferLength,sizeof(float));
     return _equilizerData;
 }
+
+-(float*) equilizerHelper {
+    if(!_equilizerHelper)
+        _equilizerHelper = (float*)calloc(kChunkSize,sizeof(float));
+    return _equilizerHelper;
+}
+
 -(SMUFFTHelper*) fftHelper {
     if(!_fftHelper)
         _fftHelper = new SMUFFTHelper(kBufferLength,kBufferLength,WindowTypeRect);
     return _fftHelper;
 }
+
 -(float*) fftMagnitudeBuffer {
     if(!_fftMagnitudeBuffer)
         _fftMagnitudeBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
     return _fftMagnitudeBuffer;
 }
+
 -(float*) fftPhaseBuffer {
     if(!_fftPhaseBuffer)
         _fftPhaseBuffer = (float *)calloc(kBufferLength/2,sizeof(float));
@@ -127,7 +139,7 @@ float *fftPhaseBuffer;
                                   PlotStyleSeparated);//drawing starts immediately after call
      */
     
-    self.graphHelper->SetBounds(-0.9,0.9,-0.9,0.9); // bottom, top, left, right, full screen==(-1,1,-1,1)
+    self.graphHelper->SetBounds(-0.9,0.8,-0.9,0.9); // bottom, top, left, right, full screen==(-1,1,-1,1)
     
     [self.audioManager play];
     
@@ -218,8 +230,33 @@ float *fftPhaseBuffer;
     //take the FFT
     self.fftHelper->forward(0,self.audioData, self.fftMagnitudeBuffer, self.fftPhaseBuffer);
     
+    float max = 0.0;
+    
+    for(int j = 0; j < kEquilizerBufferLength; j++){
+        
+        
+        for(int i = j*kChunkSize ; i < j*kChunkSize + kChunkSize; i++){
+            self.equilizerHelper[i%kChunkSize] = self.fftMagnitudeBuffer[i];
+            
+            if (i != j*kChunkSize) {
+                if(self.equilizerHelper[i%kChunkSize] > max){
+                    max = self.equilizerHelper[i%kChunkSize];
+                }
+            }
+            else{
+                max = self.equilizerHelper[i%kChunkSize];
+            }
+            
+        }
+        
+        self.equilizerData[j] = max;
+    }
+    
     // plot the FFT
     self.graphHelper->setGraphData(1,self.fftMagnitudeBuffer,kBufferLength/8,sqrt(kBufferLength)); // set graph channel
+    
+    // plot the Equalizer
+    self.graphHelper->setGraphData(2, self.equilizerData, 20);
     
     self.graphHelper->update(); // update the graph
 }

@@ -24,7 +24,7 @@
 @interface ViewController ()
 
 @property (strong, nonatomic) Novocaine *audioManager;
-@property (nonatomic)RingBuffer *ringBuffer;
+//@property (nonatomic)RingBuffer *ringBuffer;
 @property (nonatomic)GraphHelper *graphHelper;
 @property (nonatomic)float *audioData;
 
@@ -39,10 +39,11 @@
 
 @implementation ViewController
 
+
+RingBuffer *ringBuffer;
 /*
 Novocaine *audioManager;
 AudioFileReader *fileReader;
-RingBuffer *ringBuffer;
 GraphHelper *graphHelper;
 float *audioData;
 SMUFFTHelper *fftHelper;
@@ -55,11 +56,13 @@ float *fftPhaseBuffer;
         _audioManager = [Novocaine audioManager];
     return _audioManager;
 }
+/*
 -(RingBuffer*) ringBuffer {
     if(!_ringBuffer)
         _ringBuffer = new RingBuffer(kBufferLength,2);
     return _ringBuffer;
 }
+ */
 -(GraphHelper*) graphHelper {
     if(!_graphHelper) {
         _graphHelper = new GraphHelper(self,
@@ -120,7 +123,7 @@ float *fftPhaseBuffer;
 	// Do any additional setup after loading the view, typically from a nib.
     
     //audioManager = [Novocaine audioManager];
-    //ringBuffer = new RingBuffer(kBufferLength,2);
+    ringBuffer = new RingBuffer(kBufferLength,2);
     
     //audioData = (float*)calloc(kBufferLength,sizeof(float));
     
@@ -152,8 +155,8 @@ float *fftPhaseBuffer;
 
     [self.audioManager setInputBlock:^(float *data, UInt32 numFrames, UInt32 numChannels)
      {
-         if(self.ringBuffer!=nil)
-             self.ringBuffer->AddNewFloatData(data, numFrames);
+         if(ringBuffer!=nil)
+             ringBuffer->AddNewFloatData(data, numFrames);
      }];
     
 //    __block float frequency = 261.0; //starting frequency
@@ -199,10 +202,10 @@ float *fftPhaseBuffer;
     free(self.fftPhaseBuffer);
     
     delete self.fftHelper;
-    delete self.ringBuffer;
+    delete ringBuffer;
     delete self.graphHelper;
     
-    self.ringBuffer = nil;
+    ringBuffer = nil;
     self.fftHelper  = nil;
     self.audioManager = nil;
     self.graphHelper = nil;
@@ -224,7 +227,7 @@ float *fftPhaseBuffer;
 - (void)update{
     
     // plot the audio
-    self.ringBuffer->FetchFreshData2(self.audioData, kBufferLength, 0, 1);
+    ringBuffer->FetchFreshData2(self.audioData, kBufferLength, 0, 1);
     self.graphHelper->setGraphData(0,self.audioData,kBufferLength); // set graph channel
     
     //take the FFT
